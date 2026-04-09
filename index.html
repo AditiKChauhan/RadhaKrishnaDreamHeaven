@@ -106,7 +106,9 @@
     <script type="module">
       import * as THREE from "three";
       import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-
+      let lookTouchId = null;
+      let lastLookX, lastLookY;
+      const lookSensitivity = 0.003;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(
         75,
@@ -484,61 +486,105 @@
       let prev = performance.now();
 
       // touchscreen------------------
-      const joystickContainer = document.getElementById("joystick-container");
-      const joystickKnob = document.getElementById("joystick-knob");
-      let joystickActive = false;
-      let startX, startY;
+      // --- TOUCH CONTROLS FOR MOVE & LOOK ---
 
-      // Show joystick only on touch
       window.addEventListener(
         "touchstart",
-        () => {
-          joystickContainer.style.display = "block";
+        (e) => {
+          // Show joystick on first touch
+          if (joystickContainer.style.display === "none") {
+            joystickContainer.style.display = "block";
+          }
+
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+
+            // Check if touch is inside the joystick container
+            const rect = joystickContainer.getBoundingClientRect();
+            const isInsideJoystick =
+              touch.clientX >= rect.left &&
+              touch.clientX <= rect.right &&
+              touch.clientY >= rect.top &&
+              touch.clientY <= rect.bottom;
+
+            if (isInsideJoystick && !joystickActive) {
+              joystickActive = true;
+              startX = touch.clientX;
+              startY = touch.clientY;
+            } else if (lookTouchId === null) {
+              // If not joystick, it's a "Look" touch
+              lookTouchId = touch.identifier;
+              lastLookX = touch.clientX;
+              lastLookY = touch.clientY;
+            }
+          }
         },
-        { once: true }
+        { passive: false }
       );
 
-      joystickContainer.addEventListener("touchstart", (e) => {
-        joystickActive = true;
-        const touch = e.touches[0];
-        startX = touch.clientX;
-        startY = touch.clientY;
-      });
+      window.addEventListener(
+        "touchmove",
+        (e) => {
+          e.preventDefault(); // Prevents scrolling while playing
 
-      window.addEventListener("touchmove", (e) => {
-        if (!joystickActive) return;
-        const touch = e.touches[0];
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
 
-        // Calculate distance from start
-        let dx = touch.clientX - startX;
-        let dy = touch.clientY - startY;
+            // HANDLE MOVEMENT (Joystick)
+            if (joystickActive && touch.clientX < window.innerWidth / 2) {
+              let dx = touch.clientX - startX;
+              let dy = touch.clientY - startY;
+              const maxDist = 40;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > maxDist) {
+                dx *= maxDist / dist;
+                dy *= maxDist / dist;
+              }
+              joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
 
-        // Limit the knob movement to 40px radius
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxDist = 40;
-        if (dist > maxDist) {
-          dx *= maxDist / dist;
-          dy *= maxDist / dist;
+              moveKeys.f = dy < -10 ? 1 : 0;
+              moveKeys.b = dy > 10 ? 1 : 0;
+              moveKeys.l = dx < -10 ? 1 : 0;
+              moveKeys.r = dx > 10 ? 1 : 0;
+            }
+
+            // HANDLE LOOKING (Head Movement)
+            if (touch.identifier === lookTouchId) {
+              const deltaX = touch.clientX - lastLookX;
+              const deltaY = touch.clientY - lastLookY;
+
+              // Rotate camera manually (Euler angles)
+              camera.rotation.y -= deltaX * lookSensitivity;
+              camera.rotation.x -= deltaY * lookSensitivity;
+
+              // Clamp vertical look to prevent flipping upside down
+              camera.rotation.x = Math.max(
+                -Math.PI / 2,
+                Math.min(Math.PI / 2, camera.rotation.x)
+              );
+
+              lastLookX = touch.clientX;
+              lastLookY = touch.clientY;
+            }
+          }
+        },
+        { passive: false }
+      );
+
+      window.addEventListener("touchend", (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i];
+
+          if (joystickActive && touch.clientX < window.innerWidth / 2) {
+            joystickActive = false;
+            joystickKnob.style.transform = `translate(0px, 0px)`;
+            moveKeys.f = moveKeys.b = moveKeys.l = moveKeys.r = 0;
+          }
+
+          if (touch.identifier === lookTouchId) {
+            lookTouchId = null;
+          }
         }
-
-        joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
-
-        // Map to moveKeys (WASD logic)
-        // Threshold of 10 to avoid jitter
-        moveKeys.f = dy < -10 ? 1 : 0;
-        moveKeys.b = dy > 10 ? 1 : 0;
-        moveKeys.l = dx < -10 ? 1 : 0;
-        moveKeys.r = dx > 10 ? 1 : 0;
-      });
-
-      window.addEventListener("touchend", () => {
-        joystickActive = false;
-        joystickKnob.style.transform = `translate(0px, 0px)`;
-        // Stop moving when finger is lifted
-        moveKeys.f = 0;
-        moveKeys.b = 0;
-        moveKeys.l = 0;
-        moveKeys.r = 0;
       });
       // touchscreen------------------
 
