@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Radha Krishna: The Divine Radiance</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        cursor: crosshair;
+      }
+      #ui {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: #ffd700;
+        font-family: "Georgia", serif;
+        pointer-events: none;
+        text-shadow: 2px 2px 8px #000;
+        z-index: 100;
+      }
+      #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, transparent 40%, black 150%);
+        transition: background 2.5s;
+        pointer-events: none;
+        z-index: 10;
+      }
+      #waiting-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("image_0413a1.png");
+        background-size: cover;
+        background-position: center;
+        opacity: 0;
+        visibility: hidden;
+        z-index: 200;
+        transition: opacity 1.5s ease-in-out;
+        mix-blend-mode: screen;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ui">
+      <b>Celestial Warp</b><br />
+      WASD to Fly | Touch the Golden Sphere | 'M' to Mute
+    </div>
+    <div id="waiting-screen"></div>
+    <div id="overlay"></div>
+    <!-- touchscreen -->
+    <div
+      id="joystick-container"
+      style="
+        position: absolute;
+        bottom: 50px;
+        left: 50px;
+        width: 120px;
+        height: 120px;
+        background: rgba(255, 170, 0, 0.2);
+        border: 2px solid rgba(255, 215, 0, 0.5);
+        border-radius: 50%;
+        display: none;
+        touch-action: none;
+        z-index: 1000;
+      "
+    >
+      <div
+        id="joystick-knob"
+        style="
+          position: absolute;
+          top: 35px;
+          left: 35px;
+          width: 50px;
+          height: 50px;
+          background: rgba(255, 215, 0, 0.6);
+          border-radius: 50%;
+        "
+      ></div>
+    </div>
+    <!-- touchscreen -->
+    <audio id="bgMusic" loop>
+      <source
+        src="Deewaana Deewaana (PenduJatt.Com.Se).mp3"
+        type="audio/mpeg"
+      />
+    </audio>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        1,
+        60000
+      );
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      document.body.appendChild(renderer.domElement);
+
+      let currentState = "temple";
+      let isTransitioning = false;
+      let deityMesh,
+        rkVision,
+        tunnelVortex,
+        ditiMesh,
+        backgroundStars,
+        templeAura,
+        goldenRing,
+        ditiBeam,
+        colorSpiral;
+      let memories = [];
+      let travelStartTime = 0;
+      let waitRotation = 0;
+      const travelDuration = 45;
+
+      const audio = document.getElementById("bgMusic");
+      audio.loop = true;
+      const waitingScreen = document.getElementById("waiting-screen");
+
+      const controls = new PointerLockControls(camera, document.body);
+      const moveKeys = { f: 0, b: 0, l: 0, r: 0, u: 0, d: 0 };
+
+      document.addEventListener("click", () => {
+        controls.lock();
+        if (audio.paused) audio.play();
+      });
+
+      const keyH = (e, v) => {
+        if (e.code === "KeyW" || e.code === "ArrowUp") moveKeys.f = v;
+        if (e.code === "KeyS" || e.code === "ArrowDown") moveKeys.b = v;
+        if (e.code === "KeyA" || e.code === "ArrowLeft") moveKeys.l = v;
+        if (e.code === "KeyD" || e.code === "ArrowRight") moveKeys.r = v;
+        if (e.code === "KeyM" && v === 1) audio.muted = !audio.muted;
+      };
+      document.addEventListener("keydown", (e) => keyH(e, 1));
+      document.addEventListener("keyup", (e) => keyH(e, 0));
+
+      const loader = new THREE.TextureLoader();
+
+      function createDenseStardust() {
+        scene.background = new THREE.Color(0x000000);
+        const count = 25000;
+        const pos = new Float32Array(count * 3);
+        const col = new Float32Array(count * 3);
+        const palette = [
+          new THREE.Color(0xffffff),
+          new THREE.Color(0x44aaff),
+          new THREE.Color(0xffdd44),
+        ];
+        for (let i = 0; i < count; i++) {
+          const r = 15000 + Math.random() * 20000;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(Math.random() * 2 - 1);
+          pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+          pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+          pos[i * 3 + 2] = r * Math.cos(phi);
+          const c = palette[Math.floor(Math.random() * palette.length)];
+          col[i * 3] = c.r;
+          col[i * 3 + 1] = c.g;
+          col[i * 3 + 2] = c.b;
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        backgroundStars = new THREE.Points(
+          geo,
+          new THREE.PointsMaterial({
+            size: 6,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.5,
+          })
+        );
+        scene.add(backgroundStars);
+      }
+
+      function initTemple() {
+        currentState = "temple";
+        scene.children = [];
+        createDenseStardust();
+        waitingScreen.style.opacity = 0;
+        waitingScreen.style.visibility = "hidden";
+        audio.volume = 1.0;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const templeGroup = new THREE.Group();
+        const stoneMat = new THREE.MeshStandardMaterial({
+          color: 0x1a1c2c,
+          roughness: 0.9,
+        });
+        const base = new THREE.Mesh(
+          new THREE.BoxGeometry(600, 20, 600),
+          stoneMat
+        );
+        templeGroup.add(base);
+        for (let i = 0; i < 60; i++) {
+          const s = new THREE.Mesh(new THREE.BoxGeometry(150, 5, 20), stoneMat);
+          s.position.set(0, -i * 5 - 10, i * 20 + 300);
+          templeGroup.add(s);
+        }
+        for (let x of [-250, 250]) {
+          for (let z of [-250, 250]) {
+            const pillar = new THREE.Mesh(
+              new THREE.CylinderGeometry(15, 20, 450),
+              stoneMat
+            );
+            pillar.position.set(x, 225, z);
+            templeGroup.add(pillar);
+          }
+        }
+        deityMesh = new THREE.Mesh(
+          new THREE.SphereGeometry(65, 32, 32),
+          new THREE.MeshBasicMaterial({ color: 0xffd700 })
+        );
+        deityMesh.position.y = 130;
+        templeGroup.add(deityMesh);
+        const ringGeo = new THREE.TorusGeometry(130, 4, 16, 100);
+        goldenRing = new THREE.Mesh(
+          ringGeo,
+          new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            transparent: true,
+            opacity: 0.9,
+          })
+        );
+        goldenRing.rotation.x = Math.PI / 2.5;
+        deityMesh.add(goldenRing);
+
+        const aCount = 4000;
+        const aPos = new Float32Array(aCount * 3);
+        for (let i = 0; i < aCount; i++) {
+          const r = 200 + Math.random() * 500;
+          const theta = Math.random() * Math.PI * 2;
+          aPos[i * 3] = Math.cos(theta) * r;
+          aPos[i * 3 + 1] = (Math.random() - 0.5) * 700;
+          aPos[i * 3 + 2] = Math.sin(theta) * r;
+        }
+        const aGeo = new THREE.BufferGeometry();
+        aGeo.setAttribute("position", new THREE.BufferAttribute(aPos, 3));
+        templeAura = new THREE.Points(
+          aGeo,
+          new THREE.PointsMaterial({
+            color: 0xffdd44,
+            size: 2.5,
+            transparent: true,
+            opacity: 0.7,
+          })
+        );
+        templeGroup.add(templeAura);
+        templeGroup.position.set(0, 0, -2500);
+        scene.add(templeGroup);
+        camera.position.set(0, 100, 1800);
+        isTransitioning = false;
+      }
+
+      function initVision() {
+        currentState = "vision";
+        scene.children = [];
+        createDenseStardust();
+        loader.load("image_fc73df.png", (tex) => {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          const res = 300;
+          canvas.width = res;
+          canvas.height = res;
+          ctx.drawImage(tex.image, 0, 0, res, res);
+          const data = ctx.getImageData(0, 0, res, res).data;
+          const pos = [],
+            col = [];
+          for (let y = 0; y < res; y++) {
+            for (let x = 0; x < res; x++) {
+              const i = (y * res + x) * 4;
+              if (data[i + 3] > 70) {
+                pos.push(
+                  (x - res / 2) * 3.2,
+                  (res / 2 - y) * 3.2,
+                  (Math.random() - 0.5) * 15
+                );
+                col.push(
+                  (data[i] / 255) * 1.8,
+                  (data[i + 1] / 255) * 1.8,
+                  (data[i + 2] / 255) * 1.6
+                );
+              }
+            }
+          }
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute(
+            "position",
+            new THREE.Float32BufferAttribute(pos, 3)
+          );
+          geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+          rkVision = new THREE.Points(
+            geo,
+            new THREE.PointsMaterial({
+              size: 2.2,
+              vertexColors: true,
+              blending: THREE.AdditiveBlending,
+              transparent: true,
+            })
+          );
+          rkVision.position.set(0, 0, -1200);
+          scene.add(rkVision);
+        });
+        camera.position.set(0, 0, 0);
+        isTransitioning = false;
+      }
+
+      function initTimeTravel() {
+        currentState = "timetravel";
+        scene.children = [];
+        travelStartTime = Date.now();
+        const count = 15000;
+        const tubeRadius = 1200;
+        const tubeLength = 60000;
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = (Math.random() * 0.5 + 0.5) * tubeRadius;
+          pos[i * 3] = Math.cos(angle) * radius;
+          pos[i * 3 + 1] = Math.sin(angle) * radius;
+          pos[i * 3 + 2] = -Math.random() * tubeLength;
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        const streakTex = new THREE.TextureLoader().load(
+          "https://threejs.org/examples/textures/sprites/spark1.png"
+        );
+        tunnelVortex = new THREE.Points(
+          geo,
+          new THREE.PointsMaterial({
+            color: 0x00aaff,
+            size: 18,
+            map: streakTex,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.6,
+            depthWrite: false,
+          })
+        );
+        scene.add(tunnelVortex);
+
+        const imageFiles = Array.from(
+          { length: 15 },
+          (_, i) => `timetravel${i + 1}.png`
+        );
+        memories = [];
+        const timePerImage = (travelDuration - 8) / imageFiles.length;
+        imageFiles.forEach((file, i) => {
+          loader.load(file, (tex) => {
+            const aspect = tex.image.width / tex.image.height;
+            const mesh = new THREE.Mesh(
+              new THREE.PlaneGeometry(850 * aspect, 850),
+              new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide,
+              })
+            );
+            const angle = i * 1.2;
+            const dist = 1000;
+            mesh.position.set(
+              Math.cos(angle) * dist,
+              Math.sin(angle) * dist,
+              -i * 3500 - 5000
+            );
+            mesh.lookAt(0, 0, mesh.position.z);
+            scene.add(mesh);
+            memories.push({ mesh: mesh, showAt: i * timePerImage });
+          });
+        });
+        camera.position.set(0, 0, 0);
+        setTimeout(() => {
+          document.getElementById("overlay").style.background = "white";
+          setTimeout(() => initDitiEnding(), 1200);
+        }, travelDuration * 1000);
+      }
+
+      function initDitiEnding() {
+        currentState = "ending";
+        scene.children = [];
+        createDenseStardust();
+        document.getElementById("overlay").style.background = "transparent";
+
+        // SPINNING BEAM
+        const bGeo = new THREE.BufferGeometry();
+        const bPos = new Float32Array(100 * 3);
+        for (let i = 0; i < 100; i++) {
+          const angle = (i / 100) * Math.PI * 2;
+          const len = 2000 + Math.random() * 1000;
+          bPos[i * 3] = Math.cos(angle) * len;
+          bPos[i * 3 + 1] = Math.sin(angle) * len;
+          bPos[i * 3 + 2] = -50;
+        }
+        bGeo.setAttribute("position", new THREE.BufferAttribute(bPos, 3));
+        ditiBeam = new THREE.Points(
+          bGeo,
+          new THREE.PointsMaterial({
+            color: 0xffd700,
+            size: 25,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+          })
+        );
+        ditiBeam.position.set(0, 0, -2210);
+        scene.add(ditiBeam);
+
+        // COLOR SPIRAL
+        const sGeo = new THREE.BufferGeometry();
+        const sPos = new Float32Array(500 * 3);
+        for (let i = 0; i < 500; i++) {
+          const angle = (i / 500) * Math.PI * 20;
+          const radius = i * 6;
+          sPos[i * 3] = Math.cos(angle) * radius;
+          sPos[i * 3 + 1] = Math.sin(angle) * radius;
+          sPos[i * 3 + 2] = -100;
+        }
+        sGeo.setAttribute("position", new THREE.BufferAttribute(sPos, 3));
+        colorSpiral = new THREE.Points(
+          sGeo,
+          new THREE.PointsMaterial({
+            size: 15,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+          })
+        );
+        colorSpiral.position.set(0, 0, -2300);
+        scene.add(colorSpiral);
+
+        loader.load("Diti.png", (tex) => {
+          const aspect = tex.image.width / tex.image.height;
+          ditiMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(1200 * aspect, 1200),
+            new THREE.MeshBasicMaterial({
+              map: tex,
+              transparent: true,
+              opacity: 0,
+            })
+          );
+          ditiMesh.position.set(0, 0, -2200);
+          scene.add(ditiMesh);
+        });
+
+        camera.position.set(0, 0, 0);
+        setTimeout(() => {
+          waitingScreen.style.visibility = "visible";
+          waitingScreen.style.opacity = 1;
+          const fadeInterval = setInterval(() => {
+            if (audio.volume > 0.05) audio.volume -= 0.05;
+            else {
+              audio.volume = 0;
+              clearInterval(fadeInterval);
+            }
+          }, 100);
+          setTimeout(() => initTemple(), 4500);
+        }, 12000);
+      }
+
+      initTemple();
+      let prev = performance.now();
+
+      // touchscreen------------------
+      const joystickContainer = document.getElementById("joystick-container");
+      const joystickKnob = document.getElementById("joystick-knob");
+      let joystickActive = false;
+      let startX, startY;
+
+      // Show joystick only on touch
+      window.addEventListener(
+        "touchstart",
+        () => {
+          joystickContainer.style.display = "block";
+        },
+        { once: true }
+      );
+
+      joystickContainer.addEventListener("touchstart", (e) => {
+        joystickActive = true;
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+      });
+
+      window.addEventListener("touchmove", (e) => {
+        if (!joystickActive) return;
+        const touch = e.touches[0];
+
+        // Calculate distance from start
+        let dx = touch.clientX - startX;
+        let dy = touch.clientY - startY;
+
+        // Limit the knob movement to 40px radius
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxDist = 40;
+        if (dist > maxDist) {
+          dx *= maxDist / dist;
+          dy *= maxDist / dist;
+        }
+
+        joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+        // Map to moveKeys (WASD logic)
+        // Threshold of 10 to avoid jitter
+        moveKeys.f = dy < -10 ? 1 : 0;
+        moveKeys.b = dy > 10 ? 1 : 0;
+        moveKeys.l = dx < -10 ? 1 : 0;
+        moveKeys.r = dx > 10 ? 1 : 0;
+      });
+
+      window.addEventListener("touchend", () => {
+        joystickActive = false;
+        joystickKnob.style.transform = `translate(0px, 0px)`;
+        // Stop moving when finger is lifted
+        moveKeys.f = 0;
+        moveKeys.b = 0;
+        moveKeys.l = 0;
+        moveKeys.r = 0;
+      });
+      // touchscreen------------------
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const time = performance.now();
+        const delta = (time - prev) / 1000;
+
+        if (waitingScreen.style.opacity > 0) {
+          waitRotation += 4;
+          waitingScreen.style.transform = `rotate(${waitRotation}deg) scale(1.5)`;
+          waitingScreen.style.filter = `hue-rotate(${(time * 0.05) % 360}deg)`;
+        }
+
+        if (backgroundStars) backgroundStars.rotation.y += 0.0002;
+        if (controls.isLocked) {
+          if (currentState === "temple" || currentState === "vision") {
+            const s = 850;
+            const d = new THREE.Vector3();
+            d.z = moveKeys.f - moveKeys.b;
+            d.x = moveKeys.r - moveKeys.l;
+            d.normalize();
+            camera.translateX(d.x * s * delta);
+            camera.translateZ(-d.z * s * delta);
+
+            if (currentState === "temple") {
+              if (goldenRing) goldenRing.rotation.z += 0.03;
+              if (templeAura) templeAura.rotation.y += 0.008;
+              const spherePos = new THREE.Vector3();
+              deityMesh.getWorldPosition(spherePos);
+              if (
+                camera.position.distanceTo(spherePos) < 200 &&
+                !isTransitioning
+              ) {
+                isTransitioning = true;
+                document.getElementById("overlay").style.background = "white";
+                setTimeout(() => initVision(), 800);
+                setTimeout(
+                  () =>
+                    (document.getElementById("overlay").style.background =
+                      "transparent"),
+                  1500
+                );
+              }
+            }
+
+            // --- FIXED: VISION-TO-WORMHOLE TRIGGER ---
+            if (currentState === "vision" && rkVision && !isTransitioning) {
+              const visionPos = new THREE.Vector3();
+              rkVision.getWorldPosition(visionPos);
+              if (camera.position.distanceTo(visionPos) < 250) {
+                // Touching the RK Painting
+                isTransitioning = true;
+                document.getElementById("overlay").style.background = "gold";
+                setTimeout(() => initTimeTravel(), 1000);
+                setTimeout(
+                  () =>
+                    (document.getElementById("overlay").style.background =
+                      "transparent"),
+                  2000
+                );
+              }
+            }
+          } else if (currentState === "timetravel") {
+            camera.position.z -= 1500 * delta;
+            if (tunnelVortex) tunnelVortex.rotation.z += 0.02;
+            memories.forEach((m) => {
+              const age = (Date.now() - travelStartTime) / 1000 - m.showAt;
+              m.mesh.material.opacity =
+                age > 0 && age < 7
+                  ? Math.min(m.mesh.material.opacity + 0.04, 0.98)
+                  : Math.max(m.mesh.material.opacity - 0.02, 0);
+            });
+          } else if (currentState === "ending") {
+            camera.position.z -= 45 * delta;
+            if (ditiMesh) {
+              ditiMesh.material.opacity = Math.min(
+                ditiMesh.material.opacity + 0.01,
+                0.98
+              );
+              ditiMesh.position.y = Math.sin(time * 0.0015) * 50;
+            }
+            if (ditiBeam) ditiBeam.rotation.z += 0.015;
+            if (colorSpiral) {
+              colorSpiral.rotation.z -= 0.02;
+              const h = (time * 0.0005) % 1;
+              colorSpiral.material.color.setHSL(h, 0.8, 0.6);
+            }
+          }
+        }
+        if (rkVision) rkVision.rotation.y += 0.003;
+        renderer.render(scene, camera);
+        prev = time;
+      }
+      animate();
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
